@@ -15,6 +15,7 @@
 #include "toy/Lexer.h"
 #include "toy/MLIRGen.h"
 #include "toy/Parser.h"
+
 #include <memory>
 #include <string>
 #include <system_error>
@@ -101,6 +102,10 @@ static int dumpMLIR() {
 
     // Add a run of the canonicalizer to optimize the mlir module.
     pm.addNestedPass<mlir::toy::FuncOp>(mlir::createCanonicalizerPass());
+
+    //内联Pass
+    pm.addPass(mlir::createInlinerPass());
+
     if (mlir::failed(pm.run(*module)))
       return 4;
   }

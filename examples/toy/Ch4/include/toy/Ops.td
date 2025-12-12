@@ -15,6 +15,7 @@
 
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
+include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
@@ -189,7 +190,8 @@ def FuncOp : Toy_Op<"func", [
 // GenericCallOp
 //===----------------------------------------------------------------------===//
 
-def GenericCallOp : Toy_Op<"generic_call"> {
+def GenericCallOp : Toy_Op<"generic_call", 
+    [DeclareOpInterfaceMethods<CallOpInterface>]> {
   let summary = "generic call operation";
   let description = [{
     Generic calls represent calls to a user defined function that needs to
@@ -208,7 +210,13 @@ def GenericCallOp : Toy_Op<"generic_call"> {
 
   // The generic call operation takes a symbol reference attribute as the
   // callee, and inputs for the call.
-  let arguments = (ins FlatSymbolRefAttr:$callee, Variadic<F64Tensor>:$inputs);
+  //不加报错,  error: ‘class mlir::toy::GenericCallOp’ has no member named ‘getArgAttrsAttr’
+  let arguments = (ins
+    FlatSymbolRefAttr:$callee,
+    Variadic<F64Tensor>:$inputs,
+    OptionalAttr<DictArrayAttr>:$arg_attrs,
+    OptionalAttr<DictArrayAttr>:$res_attrs
+  );
 
   // The generic call operation returns a single value of TensorType.
   let results = (outs F64Tensor);
