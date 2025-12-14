@@ -173,7 +173,11 @@ private:
       function.setType(builder.getFunctionType(
           function.getFunctionType().getInputs(), getType(VarType{})));
     }
-
+    
+    // If this function isn't main, then set the visibility to private.
+    //不加loc("../test/Toy/Ch4/zb.toy":4:1): error: Shape inference failed, 3 operations couldn't be inferred
+    if (funcAST.getProto()->getName() != "main")
+      function.setPrivate();
     return function;
   }
 

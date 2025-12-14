@@ -13,11 +13,12 @@
 #ifndef TOY_OPS
 #define TOY_OPS
 
-include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/FunctionInterfaces.td"
-include "mlir/Interfaces/CallInterfaces.td"
 include "mlir/IR/SymbolInterfaces.td"
+include "mlir/Interfaces/CallInterfaces.td"
+include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "toy/ShapeInferenceInterface.td"
 
 // Provide a definition of the 'toy' dialect in the ODS framework so that we
 // can define our operations.
@@ -90,7 +91,8 @@ def ConstantOp : Toy_Op<"constant", [Pure]> {
 // AddOp
 //===----------------------------------------------------------------------===//
 
-def AddOp : Toy_Op<"add"> {
+def AddOp : Toy_Op<"add",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "element-wise addition operation";
   let description = [{
     The "add" operation performs element-wise addition between two tensors.
@@ -110,10 +112,36 @@ def AddOp : Toy_Op<"add"> {
 }
 
 //===----------------------------------------------------------------------===//
+// CastOp
+//===----------------------------------------------------------------------===//
+
+def CastOp : Toy_Op<"cast", [
+     DeclareOpInterfaceMethods<CastOpInterface>,
+     DeclareOpInterfaceMethods<ShapeInferenceOpInterface>,
+     Pure,
+     SameOperandsAndResultShape
+  ]> {
+  let summary = "shape cast operation";
+  let description = [{
+    The "cast" operation converts a tensor from one type to an equivalent type
+    without changing any data elements. The source and destination types must
+    both be tensor types with the same element type. If both are ranked, then
+    shape is required to match. The operation is invalid if converting to a
+    mismatching constant dimension.
+  }];
+
+  let arguments = (ins F64Tensor:$input);
+  let results = (outs F64Tensor:$output);
+
+  let assemblyFormat = "$input attr-dict `:` type($input) `to` type($output)";
+}
+
+//===----------------------------------------------------------------------===//
 // DivOp
 //===----------------------------------------------------------------------===//
 
-def DivOp : Toy_Op<"div"> {
+def DivOp : Toy_Op<"div",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "element-wise division operation";
   let description = [{
     The "add" operation performs element-wise division between two tensors.
@@ -236,7 +264,8 @@ def GenericCallOp : Toy_Op<"generic_call",
 // MulOp
 //===----------------------------------------------------------------------===//
 
-def MulOp : Toy_Op<"mul"> {
+def MulOp : Toy_Op<"mul",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "element-wise multiplication operation";
   let description = [{
     The "mul" operation performs element-wise multiplication between two
@@ -346,7 +375,8 @@ def ReturnOp : Toy_Op<"return", [Pure, HasParent<"FuncOp">,
 // TransposeOp
 //===----------------------------------------------------------------------===//
 
-def TransposeOp : Toy_Op<"transpose", [Pure]> {//def TransposeOp : Toy_Op<"transpose", [NoSideEffect]>这属性还挺多的
+def TransposeOp : Toy_Op<"transpose",
+    [Pure, DeclareOpInterfaceMethods<ShapeInferenceOpInterface>]> {
   let summary = "transpose operation";
 
   let arguments = (ins F64Tensor:$input);

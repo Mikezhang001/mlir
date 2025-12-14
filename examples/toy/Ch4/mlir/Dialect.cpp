@@ -63,9 +63,9 @@ struct ToyInlinerInterface : public DialectInlinerInterface {
   }
 
   // All functions within toy can be inlined.
-  // bool isLegalToInline(Region *, Region *, bool, IRMapping &) const final {
-  //   return true;
-  // }
+  bool isLegalToInline(Region *, Region *, bool, IRMapping &) const final {
+    return true;
+  }
 
   //===--------------------------------------------------------------------===//
   // Transformation Hooks
@@ -73,7 +73,7 @@ struct ToyInlinerInterface : public DialectInlinerInterface {
 
   /// Handle the given inlined terminator(toy.return) by replacing it with a new
   /// operation as necessary.
-  void handleTerminator(Operation *op, ValueRange valuesToRepl) const final {
+  void handleTerminator(Operation *op, ValueRange valuesToRepl) const final {//valuesToRepl是调用点的返回值占位符
     // Only "toy.return" needs to be handled here.
     auto returnOp = cast<ReturnOp>(op);
 
@@ -88,11 +88,11 @@ struct ToyInlinerInterface : public DialectInlinerInterface {
   /// operation that takes 'input' as the only operand, and produces a single
   /// result of 'resultType'. If a conversion can not be generated, nullptr
   /// should be returned.
-  // Operation *materializeCallConversion(OpBuilder &builder, Value input,
-  //                                      Type resultType,
-  //                                      Location conversionLoc) const final {
-  //   return CastOp::create(builder, conversionLoc, resultType, input);
-  // }
+  Operation *materializeCallConversion(OpBuilder &builder, Value input,
+                                       Type resultType,
+                                       Location conversionLoc) const final {
+    return CastOp::create(builder, conversionLoc, resultType, input);
+  }
 };
 
 //===----------------------------------------------------------------------===//
@@ -248,6 +248,33 @@ mlir::ParseResult AddOp::parse(mlir::OpAsmParser &parser,
 
 void AddOp::print(mlir::OpAsmPrinter &p) { printBinaryOp(p, *this); }
 
+/// Infer the output shape of the AddOp, this is required by the shape inference
+/// interface.
+void AddOp::inferShapes() { getResult().setType(getLhs().getType()); }
+
+//===----------------------------------------------------------------------===//
+// CastOp
+//===----------------------------------------------------------------------===//
+
+/// Infer the output shape of the CastOp, this is required by the shape
+/// inference interface.
+void CastOp::inferShapes() { getResult().setType(getInput().getType()); }
+
+/// Returns true if the given set of input and result types are compatible with
+/// this cast operation. This is required by the `CastOpInterface` to verify
+/// this operation and provide other additional utilities.
+bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs) {
+  if (inputs.size() != 1 || outputs.size() != 1)
+    return false;
+  // The inputs must be Tensors with the same element type.
+  TensorType input = llvm::dyn_cast<TensorType>(inputs.front());
+  TensorType output = llvm::dyn_cast<TensorType>(outputs.front());
+  if (!input || !output || input.getElementType() != output.getElementType())
+    return false;
+  // The shape is required to match if both types are ranked.
+  return !input.hasRank() || !output.hasRank() || input == output;
+}
+
 //===----------------------------------------------------------------------===//
 // GenericCallOp
 //===----------------------------------------------------------------------===//
@@ -337,6 +364,10 @@ mlir::ParseResult MulOp::parse(mlir::OpAsmParser &parser,
 
 void MulOp::print(mlir::OpAsmPrinter &p) { printBinaryOp(p, *this); }
 
+/// Infer the output shape of the MulOp, this is required by the shape inference
+/// interface.
+void MulOp::inferShapes() { getResult().setType(getLhs().getType()); }
+
 //===----------------------------------------------------------------------===//
 // DivOp
 //===----------------------------------------------------------------------===//
@@ -353,6 +384,11 @@ mlir::ParseResult DivOp::parse(mlir::OpAsmParser &parser,
 }
 
 void DivOp::print(mlir::OpAsmPrinter &p) { printBinaryOp(p, *this); }
+
+/// Infer the output shape of the DivOp, this is required by the shape inference
+/// interface.
+void DivOp::inferShapes() { getResult().setType(getLhs().getType()); }
+
 //===----------------------------------------------------------------------===//
 // ReturnOp
 //===----------------------------------------------------------------------===//
@@ -413,6 +449,12 @@ llvm::LogicalResult TransposeOp::verify() {
            << "expected result shape to be a transpose of the input";
   }
   return mlir::success();
+}
+
+void TransposeOp::inferShapes() {
+  auto arrayTy = llvm::cast<RankedTensorType>(getOperand().getType());
+  SmallVector<int64_t, 2> dims(llvm::reverse(arrayTy.getShape()));
+  getResult().setType(RankedTensorType::get(dims, arrayTy.getElementType()));
 }
 
 //===----------------------------------------------------------------------===//
