@@ -15,12 +15,13 @@ add_toy_chapter(toyc-ch5
   parser/AST.cpp
   mlir/MLIRGen.cpp
   mlir/Dialect.cpp
+  mlir/LowerToAffineLoops.cpp
   mlir/ShapeInferencePass.cpp
   mlir/ToyCombine.cpp
 
   DEPENDS
-  ToyCh5OpsIncGen
   ToyCh5ShapeInferenceInterfaceIncGen
+  ToyCh5OpsIncGen
   ToyCh5CombineIncGen
   )
 
@@ -29,12 +30,15 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include/)
 target_link_libraries(toyc-ch5
   PRIVATE
     MLIRAnalysis
-    MLIRCastInterfaces
     MLIRCallInterfaces
+    MLIRCastInterfaces
     MLIRFunctionInterfaces
     MLIRIR
     MLIRParser
     MLIRPass
+    MLIRRegisterAllDialects
+    MLIRRegisterAllExtensions
     MLIRSideEffectInterfaces
-    MLIRTransforms)
-
+    MLIRSupport
+    MLIRTransforms
+  )
